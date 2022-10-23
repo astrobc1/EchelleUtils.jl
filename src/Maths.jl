@@ -28,6 +28,10 @@ function nanargminimum(x::AbstractArray)
     return k
 end
 
+function round_half_down(x)
+    return ceil(x - 0.5)
+end
+
 include("chebyshev.jl")
 include("stats.jl")
 include("filters.jl")
