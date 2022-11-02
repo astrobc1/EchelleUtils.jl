@@ -105,9 +105,9 @@ function robust_σ(x::AbstractArray; w::Union{Nothing, AbstractArray}=nothing, n
     if isnothing(w)
         w = get_weights(x)
     end
-    med = weighted_median(x, w=w)
+    med = weighted_quantile(x, w=w)
     adevs = abs.(med .- x)
-    mad = weighted_median(adevs, w=w)
+    mad = weighted_quantile(adevs, w=w)
     good = findall(adevs .< 1.4826 * mad * nσ)
     if length(good) > 1
         return @views weighted_stddev(x[good], w[good])
@@ -124,9 +124,9 @@ function robust_stats(x::AbstractArray; w::Union{Nothing, AbstractArray}=nothing
     if isnothing(w)
         w = get_weights(x)
     end
-    med = weighted_median(x, w=w)
+    med = weighted_quantile(x, w=w)
     adevs = abs.(med .- x)
-    mad = weighted_median(adevs, w=w)
+    mad = weighted_quantile(adevs, w=w)
     good = findall(adevs .< 1.4826 * mad * nσ)
     if length(good) > 1
         return nanmean(@view x[good]), nanstd(@view x[good])
@@ -143,9 +143,9 @@ function robust_μ(x::AbstractArray; w::Union{Nothing, AbstractArray}=nothing, n
     if isnothing(w)
         w = get_weights(x)
     end
-    med = weighted_median(x, w=w)
+    med = weighted_quantile(x, w=w)
     adevs = abs.(med .- x)
-    mad = weighted_median(adevs, w=w)
+    mad = weighted_quantile(adevs, w=w)
     good = findall(adevs .< 1.4826 * mad * nσ)
     if length(good) > 1
         return nanmean(@view x[good])
@@ -187,10 +187,10 @@ function weighted_stddev(x::AbstractArray{<:Real}, w::AbstractArray{<:Real})
 end
 
 """
-    weighted_median(x; w=nothing, p=0.5)
+    weighted_quantile(x; w=nothing, p=0.5)
 Computes the weighted percentile of an array.
 """
-function weighted_median(x; w=nothing, p=0.5)
+function weighted_quantile(x; w=nothing, p=0.5)
     if isnothing(w)
         w = ones(size(x))
     end

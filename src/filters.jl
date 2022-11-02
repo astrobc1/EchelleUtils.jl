@@ -1,10 +1,10 @@
 using LoopVectorization
 
 """
-    median_filter1d(x::AbstractVector, width::Int)
-A median filter where x_out[i] = median(x[i-w2:i+w2]) where w2 = floor(width / 2).
+    quantile_filter1d(x::AbstractVector, width::Int, p::Real)
+A filter where x_out[i] = quantile(x[i-w2:i+w2], p) where w2 = floor(width / 2).
 """
-function median_filter1d(x::AbstractVector, width::Int)
+function quantile_filter1d(x::AbstractVector; width::Int, p::Real=0.5)
     @assert isodd(width)
     nx = length(x)
     x_out = fill(NaN, nx)
@@ -12,16 +12,17 @@ function median_filter1d(x::AbstractVector, width::Int)
     for i=1:nx
         k1 = max(i - w2, 1)
         k2 = min(i + w2, nx)
-        x_out[i] = NaNStatistics.nanmedian(@view x[k1:k2])
+        x_out[i] = @views NaNStatistics.nanquantile(x[k1:k2], p)
     end
     return x_out
 end
+
 
 """
     median_filter2d(x::AbstractVector, width::Int)
 A standard median filter where x_out[i, j] = median(x[i-w2:i+w2, j-w2:j+w2]) where w2 = floor(width / 2).
 """
-function median_filter2d(x::AbstractMatrix, width::Int)
+function quantile_filter2d(x::AbstractMatrix; width::Int, p=0.5)
     @assert isodd(width)
     ny, nx = size(x)
     x_out = fill(NaN, (ny, nx))
@@ -37,6 +38,7 @@ function median_filter2d(x::AbstractMatrix, width::Int)
     end
     return x_out
 end
+
 
 """
     poly_filter(x::AbstractVector{<:Real}, y::AbstractVector{<:Real}; width::Real, deg::Int)
@@ -111,21 +113,4 @@ function convolve1d(x::AbstractVector{<:Real}, k::AbstractArray{<:Real})
     # Return out
     return out
 
-end
-
-"""
-    generalized_median_filter1d(x::AbstractVector{<:Real}; width::Int, p::Real=0.5)
-Like `median_filter1d`, with a tunable percentile `p`.
-"""
-function generalized_median_filter1d(x::AbstractVector{<:Real}; width::Int, p::Real=0.5)
-    nx = length(x)
-    y = fill(NaN, nx)
-    for i=1:nx
-        ilow = Int(max(1, i - ceil(width / 2)))
-        ihigh = Int(min(i + floor(width / 2), nx))
-        if length(findall(isfinite.(@view x[ilow:ihigh]))) > 0
-            y[i] = weighted_median((@view x[ilow:ihigh]), p=p)
-        end
-    end
-    return y
 end
