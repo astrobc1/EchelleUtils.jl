@@ -6,13 +6,12 @@ function cspline_interp(x, y, xnew)
         return Float64[]
     end
     cspline = @views CubicSpline(y[good], x[good])
-    good = findall(xnew .>= x[good[1]] .&& xnew .<= x[good[end]])
-    ynew = fill(NaN, length(xnew))
-    for i ∈ good
-        ynew[i] = cspline(xnew[i])
-    end
+    bad = findall(xnew .< x[good[1]] .&& xnew .> x[good[end]])
+    ynew = cspline.(xnew)
+    ynew[bad] .= NaN
     return ynew
 end
+
 
 function lin_interp(x, y, xnew)
     good = findall(isfinite.(x) .&& isfinite.(y))

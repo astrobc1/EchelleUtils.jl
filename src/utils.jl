@@ -5,26 +5,13 @@ const COLORS_HEX_GADFLY = [
 
 function flatten_jagged_vector(x)
     y = eltype(x[1])[]
-    for i=1:length(x)
+    for i ∈ eachindex(x)
         y = vcat(y, x[i])
     end
     return y
 end
 
-function findgood(x...)
-    good = trues(length(x[1]))
-    for arr in x
-        good .= good .&& isfinite.(arr)
-    end
-    good = findall(good)
+function get_inds1d(coords; dim::Int)
+    good = [coord.I[dim] for coord ∈ coords]
     return good
-end
-
-function filtergood(x...)
-    good = findgood(x...)
-    xout = ()
-    for arr in x
-        xout = (xout..., arr[good])
-    end
-    return xout
 end

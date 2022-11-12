@@ -11,25 +11,22 @@ end
     rmsloss(residuals::AbstractArray{<:Real}, [weights::AbstractArray{<:Real}=nothing]; mask_worst::Int=0, mask_edges::Int=0)
 Computes the root mean squared error (RMS) loss. Weights can also be provided, otherwise uniform weights will be used.
 """
-function rmsloss(residuals::AbstractArray{<:Real}, weights::Union{AbstractArray{<:Real}, Nothing}=nothing; mask_worst::Int=0, mask_edges::Int=0)
+function rmsloss(residuals, weights=nothing; mask_worst::Int=0, mask_edges::Int=0)
 
     # Get good data
     if !isnothing(weights)
-        good = findall(isfinite.(residuals) .&& isfinite.(weights) .&& (weights .> 0))
-        rr, ww = residuals[good], weights[good]
+        good = findall(@. isfinite(residuals) && isfinite(weights) && (weights > 0))
+        wres2 = residuals[good] .* weights[good]
     else
         good = findall(isfinite.(residuals))
-        rr = residuals[good]
-        ww = ones(length(rr))
+        wres2 = residuals[good].^2
     end
     
     # Ignore worst N pixels
     if mask_worst > 0
         ss = sortperm(abs.(rr))
-        rr[ss[end-mask_worst+1:end]] .= NaN
-        if !isnothing(weights)
-            ww[ss[end-mask_worst+1:end]] .= 0
-        end
+        diffs2[ss[end-mask_worst+1:end]] .= NaN
+        ww[ss[end-mask_worst+1:end]] .= 0
     end
 
     # Remove edges
@@ -53,44 +50,32 @@ end
     redχ2loss(residuals::AbstractArray{<:Real}, [errors::AbstractArray{<:Real}=nothing]; mask_worst::Int=0, mask_edges::Int=0)
 Computes the reduced chi square loss.
 """
-function redχ2loss(residuals::AbstractArray{<:Real}, errors::AbstractArray{<:Real}, mask::Union{AbstractArray{<:Real}, Nothing}=nothing; mask_worst=0, mask_edges=0, ν=nothing)
+function redχ2loss(residuals, errors; mask_worst=0, mask_edges=0, n_pars_opt)
 
     # Compute diffs2
-    if isnothing(mask)
-        good = findall(isfinite.(residuals) .&& isfinite.(errors) .&& (mask .== 1))
-        residuals, errors, mask = residuals[good], errors[good], mask[good]
-    else
-        good = findall(isfinite.(residuals) .&& isfinite.(errors))
-        residuals, errors = residuals[good], errors[good]
-        mask = ones(length(residuals))
-    end
+    good = findall(isfinite.(residuals) .&& isfinite.(errors))
+    norm_res2 = (residuals[good] ./ errors[good]).^2
 
     # Remove edges
     if mask_edges > 0
-        residuals[1:mask_edges-1] .= NaN
-        residuals[end-mask_edges+1:end] .= NaN
-        mask[1:mask_edges-1] .= 0
-        mask[end-mask_edges+1:end] .= 0
+        norm_res2[1:mask_edges-1] .= NaN
+        norm_res2[end-mask_edges+1:end] .= NaN
     end
     
     # Ignore worst N pixels
     if mask_worst > 0
-        ss = sortperm(abs.(residuals))
-        residuals[ss[end-mask_worst+1:end]] .= NaN
-        mask[ss[end-mask_worst+1:end]] .= 0
+        ss = sortperm(norm_res2)
+        norm_res2[ss[end-mask_worst+1:end]] .= NaN
     end
 
     # Degrees of freedom
-    if isnothing(ν)
-        ν = sum(mm) - 2 * mask_edges - mask_worst - 1
-    else
-        ν = ν - 2 * mask_edges - mask_worst
-    end
+    good = findall(norm_res2)
+    ν = n_good - n_pars_opt - 2 * mask_edges - mask_worst
 
     @assert ν > 0
 
     # Compute chi2
-    redχ² = nansum((residuals ./ errors).^2) / ν
+    redχ² = nansum(norm_res2) / ν
 
     # Return
     return redχ²
@@ -103,7 +88,7 @@ Computes a robust standard deviation value by flagging values through the median
 """
 function robust_σ(x::AbstractArray; w::Union{Nothing, AbstractArray}=nothing, nσ::Real=4)
     if isnothing(w)
-        w = get_weights(x)
+        w = get_mask(x)
     end
     med = weighted_quantile(x, w=w)
     adevs = abs.(med .- x)
@@ -122,7 +107,7 @@ Computes a robust standard mean and deviation value by flagging values through t
 """
 function robust_stats(x::AbstractArray; w::Union{Nothing, AbstractArray}=nothing, nσ::Real=4)
     if isnothing(w)
-        w = get_weights(x)
+        w = get_mask(x)
     end
     med = weighted_quantile(x, w=w)
     adevs = abs.(med .- x)
@@ -141,7 +126,7 @@ Computes a robust standard mean value by flagging values through the median abso
 """
 function robust_μ(x::AbstractArray; w::Union{Nothing, AbstractArray}=nothing, nσ::Real=4)
     if isnothing(w)
-        w = get_weights(x)
+        w = get_mask(x)
     end
     med = weighted_quantile(x, w=w)
     adevs = abs.(med .- x)
@@ -175,11 +160,13 @@ end
 Computes the unbiased weighted standard deviation of an array.
 """
 function weighted_stddev(x::AbstractArray{<:Real}, w::AbstractArray{<:Real})
-    good = findall(isfinite.(x) .&& (w .> 0) .&& isfinite.(w))
+    good = findall(@. isfinite(x) && (w > 0) && isfinite(w))
     xx = x[good]
     ww = w[good]
     ww ./= sum(ww)
-    μ = weighted_mean(xx, ww)
+    if isnothing(μ)
+        μ = weighted_mean(xx, ww)
+    end
     dev = xx .- μ
     bias_estimator = 1.0 - sum(ww.^2)
     var = sum(dev .^2 .* ww) / bias_estimator
@@ -194,7 +181,7 @@ function weighted_quantile(x; w=nothing, p=0.5)
     if isnothing(w)
         w = ones(size(x))
     end
-    good = findall(isfinite.(x) .&& (w .> 0) .&& isfinite.(w))
+    good = findall(@. isfinite(x) && (w > 0) && isfinite(w))
     if length(good) > 0
         xx = @view x[good]
         ww = @view w[good]
@@ -205,10 +192,10 @@ function weighted_quantile(x; w=nothing, p=0.5)
 end
 
 """
-    get_weights(x)
-Construct defualt weights for an array.
+    get_mask(x)
+Construct defualt mask for an array by masking nans.
 """
-function get_weights(x)
+function get_mask(x)
     w = ones(size(x))
     bad = findall(.~isfinite.(x))
     w[bad] .= 0
