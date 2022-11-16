@@ -7,6 +7,11 @@ function gauss(x, a, μ, σ)
     return @. a * exp(-0.5 * ((x - μ) / σ)^2)
 end
 
+function gauss2d(x, y, amp, μx, μy, σx, σy, θ=0)
+    y = amp * exp(-(((x - μx) * cos(θ)+ (y - μy) * sin(θ)) / σx)^2-((-(x - μx) * sin(θ) + (y - μy) * cos(θ)) / σy)^2)
+    return y
+end
+
 """
     rmsloss(residuals::AbstractArray{<:Real}, [weights::AbstractArray{<:Real}=nothing]; mask_worst::Int=0, mask_edges::Int=0)
 Computes the root mean squared error (RMS) loss. Weights can also be provided, otherwise uniform weights will be used.
@@ -14,33 +19,35 @@ Computes the root mean squared error (RMS) loss. Weights can also be provided, o
 function rmsloss(residuals, weights=nothing; mask_worst::Int=0, mask_edges::Int=0)
 
     # Get good data
-    if !isnothing(weights)
-        good = findall(@. isfinite(residuals) && isfinite(weights) && (weights > 0))
-        wres2 = residuals[good] .* weights[good]
-    else
-        good = findall(isfinite.(residuals))
-        wres2 = residuals[good].^2
-    end
-    
-    # Ignore worst N pixels
-    if mask_worst > 0
-        ss = sortperm(abs.(rr))
-        diffs2[ss[end-mask_worst+1:end]] .= NaN
-        ww[ss[end-mask_worst+1:end]] .= 0
+    if isnothing(weights)
+        weights = ones(length(residuals))
     end
 
+    good = findall(@. isfinite(residuals) && isfinite(weights) && (weights > 0))
+    residuals, weights = residuals[good], weights[good]
+    wres2 = weights .* residuals.^2
+    
     # Remove edges
     if mask_edges > 0
-        rr[1:mask_edges] .= NaN
-        rr[end-mask_edges+1:end] .= NaN
-        if !isnothing(weights)
-            ww[1:mask_edges] .= 0
-            ww[end-mask_edges+1:end] .= 0
-        end
+        wres2[1:mask_edges] .= NaN
+        wres2[end-mask_edges+1:end] .= NaN
+        residuals[1:mask_edges] .= NaN
+        residuals[end-mask_edges+1:end] .= NaN
+        weights[1:mask_edges] .= 0
+        weights[end-mask_edges+1:end] .= 0
     end
+
+    # Ignore worst N pixels
+    if mask_worst > 0
+        ss = sortperm(abs.(wres2))
+        wres2[ss[end-mask_worst+1:end]] .= NaN
+        residuals[ss[end-mask_worst+1:end]] .= NaN
+        weights[ss[end-mask_worst+1:end]] .= 0
+    end
+
         
     # Compute rms
-    rms = sqrt(nansum(ww .* rr.^2) / nansum(ww))
+    rms = sqrt(nansum(weights .* residuals.^2) / nansum(weights))
 
     # Return
     return rms
@@ -53,8 +60,8 @@ Computes the reduced chi square loss.
 function redχ2loss(residuals, errors; mask_worst=0, mask_edges=0, n_pars_opt)
 
     # Compute diffs2
-    good = findall(isfinite.(residuals) .&& isfinite.(errors))
-    norm_res2 = (residuals[good] ./ errors[good]).^2
+    good = findall(@. isfinite(residuals) && isfinite(errors))
+    norm_res2 = @views (residuals[good] ./ errors[good]).^2
 
     # Remove edges
     if mask_edges > 0
@@ -69,7 +76,8 @@ function redχ2loss(residuals, errors; mask_worst=0, mask_edges=0, n_pars_opt)
     end
 
     # Degrees of freedom
-    good = findall(norm_res2)
+    good = findall(isfinite.(norm_res2))
+    n_good = length(good)
     ν = n_good - n_pars_opt - 2 * mask_edges - mask_worst
 
     @assert ν > 0
