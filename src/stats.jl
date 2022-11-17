@@ -167,7 +167,7 @@ end
     weighted_stddev(x::AbstractArray{<:Real}, w::AbstractArray{<:Real})
 Computes the unbiased weighted standard deviation of an array.
 """
-function weighted_stddev(x::AbstractArray{<:Real}, w::AbstractArray{<:Real})
+function weighted_stddev(x::AbstractArray{<:Real}, w::AbstractArray{<:Real}; μ=nothing)
     good = findall(@. isfinite(x) && (w > 0) && isfinite(w))
     xx = x[good]
     ww = w[good]
