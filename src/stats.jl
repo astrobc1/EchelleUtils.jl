@@ -1,4 +1,4 @@
-
+using Infiltrator
 """
     gauss(x, a, μ, σ)
 Construct a Guassian function.
@@ -29,23 +29,19 @@ function rmsloss(residuals, weights=nothing; mask_worst::Int=0, mask_edges::Int=
     
     # Remove edges
     if mask_edges > 0
-        wres2[1:mask_edges] .= NaN
-        wres2[end-mask_edges+1:end] .= NaN
-        residuals[1:mask_edges] .= NaN
-        residuals[end-mask_edges+1:end] .= NaN
-        weights[1:mask_edges] .= 0
-        weights[end-mask_edges+1:end] .= 0
+        wres2 = wres2[mask_edges:end-mask_edges]
+        residuals = residuals[mask_edges:end-mask_edges]
+        weights = weights[mask_edges:end-mask_edges]
     end
 
     # Ignore worst N pixels
     if mask_worst > 0
-        ss = sortperm(abs.(wres2))
-        wres2[ss[end-mask_worst+1:end]] .= NaN
-        residuals[ss[end-mask_worst+1:end]] .= NaN
-        weights[ss[end-mask_worst+1:end]] .= 0
+        ss = sortperm(wres2)
+        wres2 = wres2[ss[1:end-mask_worst]]
+        residuals = residuals[ss[1:end-mask_worst]]
+        weights = weights[ss[1:end-mask_worst]]
     end
 
-        
     # Compute rms
     rms = sqrt(nansum(weights .* residuals.^2) / nansum(weights))
 
@@ -65,20 +61,18 @@ function redχ2loss(residuals, errors; mask_worst=0, mask_edges=0, n_pars_opt)
 
     # Remove edges
     if mask_edges > 0
-        norm_res2[1:mask_edges-1] .= NaN
-        norm_res2[end-mask_edges+1:end] .= NaN
+        norm_res2 = norm_res2[mask_edges:end-mask_edges]
     end
     
     # Ignore worst N pixels
     if mask_worst > 0
         ss = sortperm(norm_res2)
-        norm_res2[ss[end-mask_worst+1:end]] .= NaN
+        norm_res2 = norm_res2[ss[1:end-mask_worst]]
     end
 
     # Degrees of freedom
-    good = findall(isfinite.(norm_res2))
-    n_good = length(good)
-    ν = n_good - n_pars_opt - 2 * mask_edges - mask_worst
+    n_good = length(norm_res2)
+    ν = n_good - n_pars_opt
 
     @assert ν > 0
 

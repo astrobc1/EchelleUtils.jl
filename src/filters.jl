@@ -68,7 +68,7 @@ function convolve1d(x::AbstractVector{<:Real}, k::AbstractArray{<:Real})
     nx = length(x)
     nk = length(k)
     n_pad = Int(floor(nk / 2))
-    out = zeros(nx)
+    out = zeros(eltype(x), nx)
     kf = @view k[end:-1:1]
     valleft = x[1]
     valright = x[end]
