@@ -1,10 +1,10 @@
 using LoopVectorization
 
 """
-    quantile_filter1d(x::AbstractVector, width::Int, p::Real)
-A filter where x_out[i] = quantile(x[i-w2:i+w2], p) where w2 = floor(width / 2).
+    quantile_filter1d(x, width::Int, p::Real)
+A filter where x_out[i] = quantile(x[i-w2:i+w2], p) where w2 = floor(width / 2). The width must be odd.
 """
-function quantile_filter1d(x::AbstractVector; width::Int, p::Real=0.5)
+function quantile_filter1d(x; width::Int, p::Real=0.5)
     @assert isodd(width)
     nx = length(x)
     x_out = fill(NaN, nx)
@@ -19,10 +19,10 @@ end
 
 
 """
-    median_filter2d(x::AbstractVector, width::Int)
-A standard median filter where x_out[i, j] = median(x[i-w2:i+w2, j-w2:j+w2]) where w2 = floor(width / 2).
+    quantile_filter2d(x, width::Int)
+A filter where x_out[i, j] = quantile(x[i-w2:i+w2, j-w2:j+w2]) where w2 = floor(width / 2). The width must be odd.
 """
-function quantile_filter2d(x::AbstractMatrix; width::Int, p=0.5)
+function quantile_filter2d(x; width::Int, p=0.5)
     @assert isodd(width)
     ny, nx = size(x)
     x_out = fill(NaN, (ny, nx))
@@ -41,10 +41,10 @@ end
 
 
 """
-    poly_filter(x::AbstractVector{<:Real}, y::AbstractVector{<:Real}; width::Real, deg::Int)
-A filter created by rolling polynomial fits of degree `deg` and window size `width`.
+    poly_filter1d(x, y; width::Real, deg::Int)
+A filter created by rolling polynomial fits of degree `deg` and window size `width`. Similar to a savgol filter.
 """
-function poly_filter(x::AbstractVector{<:Real}, y::AbstractVector{<:Real}; width::Real, deg::Int)
+function poly_filter1d(x, y; width::Real, deg::Int)
     nx = length(x)
     y_out = fill(NaN, nx)
     for i=1:nx
@@ -53,7 +53,7 @@ function poly_filter(x::AbstractVector{<:Real}, y::AbstractVector{<:Real}; width
             try
                 y_out[i] = Polynomials.fit(x[use], y[use], deg)(x[i])
             catch
-                nothing
+                y_out[i] = x[i]
             end
         end
     end
@@ -61,10 +61,10 @@ function poly_filter(x::AbstractVector{<:Real}, y::AbstractVector{<:Real}; width
 end
 
 """
-    convolve1d(x::AbstractVector{<:Real}, k::AbstractArray{<:Real})
-1D direct numerical convolution.
+    convolve1d(x, k)
+1D direct numerical convolution accelerated by LoopVectorization.jl. The output is the same size as `x`.
 """
-function convolve1d(x::AbstractVector{<:Real}, k::AbstractArray{<:Real})
+function convolve1d(x, k)
     nx = length(x)
     nk = length(k)
     n_pad = Int(floor(nk / 2))

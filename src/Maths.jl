@@ -8,7 +8,11 @@ using Polynomials
 const SPEED_OF_LIGHT_MPS = 299792458.0
 const TWO_SQRT_2LOG2 = 2 * sqrt(2 * log(2))
 
-function nanargmaximum(x::AbstractArray)
+"""
+    nanargmaximum(x)
+Returns the index of the max value of an array ignoring non-finite values.
+"""
+function nanargmaximum(x)
     k = 1
     for i=1:length(x)
         if x[i] > x[k] && isfinite(x[i])
@@ -18,7 +22,11 @@ function nanargmaximum(x::AbstractArray)
     return k
 end
 
-function nanargminimum(x::AbstractArray)
+"""
+    nanargminimum(x)
+Returns the index of the min value of an array ignoring non-finite values.
+"""
+function nanargminimum(x)
     k = 1
     for i=1:length(x)
         if x[i] < x[k] && isfinite(x[i])
@@ -28,10 +36,18 @@ function nanargminimum(x::AbstractArray)
     return k
 end
 
+"""
+    round_half_down(x)
+Standard rounding but 0.5 rounds down.
+"""
 function round_half_down(x)
     return ceil(x - 0.5)
 end
 
+"""
+    group_peaks(x; sep)
+Utility method for pseudo K-means clustering of 1D data. Groups points together based on their proximity.
+"""
 function group_peaks(x; sep)
     peak_centers = Float64[]
     peak_heights = Float64[]
@@ -52,5 +68,6 @@ include("chebyshev.jl")
 include("stats.jl")
 include("filters.jl")
 include("interp.jl")
+include("ccf.jl")
 
 end

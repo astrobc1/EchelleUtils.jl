@@ -5,14 +5,22 @@ const COLORS_HEX_GADFLY = [
     "#9E9E9E", "#F1988E", "#5DB15A", "#E28544", "#52B8AA"
 ]
 
-function flatten_jagged_vector(x)
-    y = eltype(x[1])[]
+"""
+    flatten_jagged_vector(x::Vector{Vector{T}}) where{T}
+Flattens a vector of vectors, each possibly with a different length.
+"""
+function flatten_jagged_vector(x::Vector{Vector{T}}) where{T}
+    y = T[]
     for i ∈ eachindex(x)
         y = vcat(y, x[i])
     end
     return y
 end
 
+"""
+    get_inds1d(coords; dim::Int)
+Gets the 1d array indices returned from the results of findall for multi-dimensional arrays.
+"""
 function get_inds1d(coords; dim::Int)
     good = [coord.I[dim] for coord ∈ coords]
     return good
