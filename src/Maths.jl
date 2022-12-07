@@ -69,5 +69,6 @@ include("stats.jl")
 include("filters.jl")
 include("interp.jl")
 include("ccf.jl")
+include("polyfit.jl")
 
 end
